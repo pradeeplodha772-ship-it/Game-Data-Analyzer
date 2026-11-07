@@ -19,6 +19,9 @@ public class MainActivity extends Activity {
     private EditText input;
     private TextView output;
     private static final int PICK_FILE = 42;
+    private TextView selectedAppView;
+    private String selectedPackage = "";
+    private String selectedLabel = "";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -38,6 +41,36 @@ public class MainActivity extends Activity {
         sub.setText("Local file inspection · JSON · Base64 · Protobuf · PCAP");
         sub.setTextColor(0xFF9DA7B3); sub.setTextSize(12);
         root.addView(sub);
+
+        TextView appHeading = new TextView(this);
+        appHeading.setText("PER-APP NETWORK MONITOR");
+        appHeading.setTextColor(0xFF79C0FF);
+        appHeading.setTextSize(14);
+        appHeading.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams ahp = new LinearLayout.LayoutParams(-1, -2);
+        ahp.setMargins(0, 18, 0, 6);
+        root.addView(appHeading, ahp);
+
+        selectedAppView = new TextView(this);
+        selectedAppView.setTextColor(0xFFE6EDF3);
+        selectedAppView.setTextSize(13);
+        selectedAppView.setPadding(12, 14, 12, 14);
+        selectedAppView.setBackgroundColor(0xFF161B22);
+        root.addView(selectedAppView);
+        restoreSelectedApp();
+
+        LinearLayout appActions = new LinearLayout(this);
+        appActions.setOrientation(LinearLayout.HORIZONTAL);
+        addButton(appActions, "SELECT APP", v -> showAppPicker());
+        addButton(appActions, "CLEAR", v -> clearSelectedApp());
+        root.addView(appActions);
+
+        TextView monitorNote = new TextView(this);
+        monitorNote.setText("Select one installed app. Live capture will only start after the per-app VPN forwarding engine is installed and the Android VPN permission is approved.");
+        monitorNote.setTextColor(0xFFFFC66D);
+        monitorNote.setTextSize(11);
+        monitorNote.setPadding(2, 8, 2, 8);
+        root.addView(monitorNote);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -68,6 +101,122 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(-1, 0, 1);
         op.setMargins(0,8,0,0); root.addView(scroll, op);
         setContentView(root);
+    }
+
+
+    private void restoreSelectedApp() {
+        android.content.SharedPreferences p = getSharedPreferences("amuria", MODE_PRIVATE);
+        selectedPackage = p.getString("selected_package", "");
+        selectedLabel = p.getString("selected_label", "");
+        updateSelectedAppView();
+    }
+
+    private void updateSelectedAppView() {
+        if (selectedAppView == null) return;
+        if (selectedPackage.isEmpty()) {
+            selectedAppView.setText("No app selected\\nChoose an installed app to monitor.");
+        } else {
+            selectedAppView.setText("SELECTED APP\\n" + selectedLabel + "\\n" + selectedPackage);
+        }
+    }
+
+    private void clearSelectedApp() {
+        selectedPackage = "";
+        selectedLabel = "";
+        getSharedPreferences("amuria", MODE_PRIVATE).edit()
+                .remove("selected_package").remove("selected_label").apply();
+        updateSelectedAppView();
+    }
+
+    private void showAppPicker() {
+        final java.util.ArrayList<android.content.pm.ApplicationInfo> apps =
+                new java.util.ArrayList<>();
+        final android.content.pm.PackageManager pm = getPackageManager();
+        for (android.content.pm.ApplicationInfo info : pm.getInstalledApplications(0)) {
+            if (getPackageName().equals(info.packageName)) continue;
+            apps.add(info);
+        }
+        java.util.Collections.sort(apps, (a, b) ->
+                pm.getApplicationLabel(a).toString().compareToIgnoreCase(
+                        pm.getApplicationLabel(b).toString()));
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        EditText search = new EditText(this);
+        search.setSingleLine(true);
+        search.setHint("Search installed apps");
+        panel.addView(search);
+        ListView list = new ListView(this);
+        panel.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        final java.util.ArrayList<android.content.pm.ApplicationInfo> shown =
+                new java.util.ArrayList<>(apps);
+        android.widget.BaseAdapter adapter = new android.widget.BaseAdapter() {
+            @Override public int getCount() { return shown.size(); }
+            @Override public Object getItem(int position) { return shown.get(position); }
+            @Override public long getItemId(int position) { return position; }
+            @Override public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                android.content.pm.ApplicationInfo info = shown.get(position);
+                LinearLayout row = new LinearLayout(MainActivity.this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(12, 10, 12, 10);
+                ImageView icon = new ImageView(MainActivity.this);
+                try { icon.setImageDrawable(pm.getApplicationIcon(info)); } catch (Exception ignored) {}
+                row.addView(icon, new LinearLayout.LayoutParams(44, 44));
+                LinearLayout labels = new LinearLayout(MainActivity.this);
+                labels.setOrientation(LinearLayout.VERTICAL);
+                labels.setPadding(12, 0, 0, 0);
+                TextView name = new TextView(MainActivity.this);
+                name.setText(pm.getApplicationLabel(info).toString());
+                name.setTextColor(0xFFE6EDF3);
+                name.setTextSize(14);
+                TextView pkg = new TextView(MainActivity.this);
+                pkg.setText(info.packageName);
+                pkg.setTextColor(0xFF9DA7B3);
+                pkg.setTextSize(10);
+                labels.addView(name);
+                labels.addView(pkg);
+                row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+                return row;
+            }
+        };
+        list.setAdapter(adapter);
+        search.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int before, int count) {
+                String q = s.toString().toLowerCase(Locale.ROOT);
+                shown.clear();
+                for (android.content.pm.ApplicationInfo info : apps) {
+                    String name = pm.getApplicationLabel(info).toString().toLowerCase(Locale.ROOT);
+                    if (name.contains(q) || info.packageName.toLowerCase(Locale.ROOT).contains(q)) {
+                        shown.add(info);
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            }
+            @Override public void afterTextChanged(android.text.Editable e) {}
+        });
+
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setTitle("Choose one installed app")
+                .setView(panel)
+                .setNegativeButton("CANCEL", null)
+                .create();
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            android.content.pm.ApplicationInfo info = shown.get(position);
+            selectedPackage = info.packageName;
+            selectedLabel = pm.getApplicationLabel(info).toString();
+            getSharedPreferences("amuria", MODE_PRIVATE).edit()
+                    .putString("selected_package", selectedPackage)
+                    .putString("selected_label", selectedLabel).apply();
+            updateSelectedAppView();
+            dialog.dismiss();
+        });
+        dialog.show();
+        dialog.getWindow().setLayout(
+                (int)(getResources().getDisplayMetrics().widthPixels * 0.94),
+                (int)(getResources().getDisplayMetrics().heightPixels * 0.78));
     }
 
     private void addButton(LinearLayout row, String label, View.OnClickListener click) {
