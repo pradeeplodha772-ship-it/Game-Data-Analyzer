@@ -77,7 +77,11 @@ The Android app currently supports local JSON, Base64, hex, schema-less
 Protobuf wire-field and classic Ethernet PCAP inspection. The Android
 local-file analyzer is separate from the optional Python live-proxy tools.
 
-## 6. Roadmap
+## 6. Per-app usage statistics (Android)
+
+The Android dashboard can query Android's OS-reported per-UID Wi-Fi byte totals for the selected installed app. The user must explicitly enable Usage Access in Android Settings and tap Refresh. These counters are system-reported and may be delayed; they are not packet-level capture, HTTP request inspection, or real-time speed.
+
+## 7. Roadmap
 
 - Android local-VPN capture with explicit user consent and per-app selection.
 - PCAPNG/IPv6 support and richer DNS/TLS metadata in the Android UI.
