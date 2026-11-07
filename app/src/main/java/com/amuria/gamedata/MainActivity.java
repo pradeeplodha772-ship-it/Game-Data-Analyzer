@@ -33,12 +33,12 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(0xFF0B0F14);
 
         TextView title = new TextView(this);
-        title.setText("AMURIA  •  DATA ANALYZER");
+        title.setText("P.R  •  NETWORK INTELLIGENCE");
         title.setTextColor(0xFF7EE787); title.setTextSize(20); title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Local file inspection · JSON · Base64 · Protobuf · PCAP");
+        sub.setText("Advanced Network Analyzer · Per-App Monitor · Traffic Tools");
         sub.setTextColor(0xFF9DA7B3); sub.setTextSize(12);
         root.addView(sub);
 
@@ -64,6 +64,11 @@ public class MainActivity extends Activity {
         addButton(appActions, "SELECT APP", v -> showAppPicker());
         addButton(appActions, "CLEAR", v -> clearSelectedApp());
         root.addView(appActions);
+
+        LinearLayout floatActions = new LinearLayout(this);
+        floatActions.setOrientation(LinearLayout.HORIZONTAL);
+        addButton(floatActions, "FLOATING WINDOW", v -> openFloatingControls());
+        root.addView(floatActions);
 
         TextView monitorNote = new TextView(this);
         monitorNote.setText("Select one installed app. Live capture will only start after the per-app VPN forwarding engine is installed and the Android VPN permission is approved.");
@@ -103,6 +108,22 @@ public class MainActivity extends Activity {
         setContentView(root);
     }
 
+
+
+    private void openFloatingControls() {
+        if (android.os.Build.VERSION.SDK_INT >= 23 &&
+                !android.provider.Settings.canDrawOverlays(this)) {
+            Intent permission = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(permission);
+            Toast.makeText(this, "Allow display over other apps, then tap FLOATING WINDOW again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        Intent service = new Intent(this, FloatingControlService.class);
+        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service);
+        else startService(service);
+        Toast.makeText(this, "Floating controls opened. Capture engine is not connected yet.", Toast.LENGTH_LONG).show();
+    }
 
     private void restoreSelectedApp() {
         android.content.SharedPreferences p = getSharedPreferences("amuria", MODE_PRIVATE);
