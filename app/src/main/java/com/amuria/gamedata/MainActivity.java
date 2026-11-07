@@ -1,6 +1,11 @@
 package com.amuria.gamedata;
 
 import android.app.Activity;
+import android.app.AppOpsManager;
+import android.app.usage.NetworkStats;
+import android.app.usage.NetworkStatsManager;
+import android.net.ConnectivityManager;
+import android.os.Process;
 import android.os.Bundle;
 import android.content.Intent;
 import android.net.Uri;
@@ -24,6 +29,7 @@ public class MainActivity extends Activity {
     private TextView selectedSummary;
     private EditText toolInput;
     private TextView toolOutput;
+    private TextView usageSummary;
     private String currentTab="Home";
     private final int BG=0xFF070A12, PANEL=0xFF111827, PANEL2=0xFF151D2D;
     private final int PURPLE=0xFFB66BFF, CYAN=0xFF35D8E8, TEXT=0xFFF4F5FA, MUTED=0xFF9AA8BD;
@@ -110,14 +116,53 @@ public class MainActivity extends Activity {
             TextView clear=action("CHANGE APP",()->showAppPicker());clear.setPadding(10,10,10,10);selected.addView(clear);
         }
         section("NETWORK OVERVIEW","Live counters will populate when capture engine is active.");
-        LinearLayout stats=horizontal();
-        stats.addView(stat("REQUESTS","—"));stats.addView(stat("DATA","—"));stats.addView(stat("SPEED","—"));
-        content.addView(stats);
+        LinearLayout usage=card();
+        usage.addView(text("ANDROID NETWORK USAGE",12,CYAN,true));
+        usageSummary=text("Choose an app, grant Usage Access, then refresh OS-reported Wi-Fi bytes.",11,MUTED,false);
+        usageSummary.setPadding(0,8,0,10);usage.addView(usageSummary);
+        usage.addView(action("REFRESH SELECTED APP USAGE",()->loadSelectedAppUsage()));
+        usage.addView(action("GRANT USAGE ACCESS",()->startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS))));
+        usage.addView(text("Android reports per-app byte totals with system-dependent delay. This is not packet capture or HTTP content inspection.",10,MUTED,false));
         LinearLayout quick=card();quick.addView(text("QUICK ACCESS",13,TEXT,true));
         String[][] items={{"Sessions","View HTTP / HTTPS session metadata"},{"Hosts","DNS, hosts and connection summaries"},{"Tools","JSON, Base64, Protobuf, Hex and PCAP"},{"Logs","Capture diagnostics and app events"}};
         for(String[] it:items){TextView b=text(it[0]+"   ›   "+it[1],12,CYAN,true);b.setPadding(2,12,2,12);b.setOnClickListener(v->showTab(it[0]));quick.addView(b);}
         LinearLayout note=card();note.addView(text("PRIVACY & CAPTURE STATUS",12,CYAN,true));
         note.addView(text("No traffic is being captured in this build. The VPN/TUN forwarding engine must be implemented before sessions, hosts and live speed can display real values. No simulated traffic counters are shown.",11,MUTED,false));
+    }
+
+    private boolean hasUsageAccess(){
+        AppOpsManager ops=(AppOpsManager)getSystemService(APP_OPS_SERVICE);
+        int mode=ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,Process.myUid(),getPackageName());
+        return mode==AppOpsManager.MODE_ALLOWED;
+    }
+    private void loadSelectedAppUsage(){
+        if(selectedPackage.isEmpty()){usageSummary.setText("Select an installed app first.");return;}
+        if(!hasUsageAccess()){
+            usageSummary.setText("Usage Access permission is required. Tap GRANT USAGE ACCESS, enable P.R Network Intelligence, return and refresh.");
+            return;
+        }
+        try{
+            int uid=getPackageManager().getApplicationInfo(selectedPackage,0).uid;
+            java.util.Calendar cal=java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.HOUR_OF_DAY,0);cal.set(java.util.Calendar.MINUTE,0);
+            cal.set(java.util.Calendar.SECOND,0);cal.set(java.util.Calendar.MILLISECOND,0);
+            long start=cal.getTimeInMillis(),end=System.currentTimeMillis();
+            NetworkStatsManager manager=(NetworkStatsManager)getSystemService(NETWORK_STATS_SERVICE);
+            NetworkStats stats=manager.queryDetailsForUid(ConnectivityManager.TYPE_WIFI,null,start,end,uid);
+            long rx=0,tx=0;NetworkStats.Bucket bucket=new NetworkStats.Bucket();
+            while(stats.hasNextBucket()){stats.getNextBucket(bucket);rx+=bucket.getRxBytes();tx+=bucket.getTxBytes();}
+            stats.close();
+            usageSummary.setText("APP: "+selectedLabel+"\nPACKAGE: "+selectedPackage+
+                "\nTODAY WI-FI DOWNLOAD: "+formatBytes(rx)+
+                "\nTODAY WI-FI UPLOAD: "+formatBytes(tx)+
+                "\nUPDATED: "+new java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.getDefault()).format(new java.util.Date()));
+        }catch(Exception e){usageSummary.setText("Unable to read usage stats: "+e.getClass().getSimpleName()+" — "+e.getMessage());}
+    }
+    private String formatBytes(long n){
+        if(n<1024)return n+" B";
+        if(n<1024*1024)return String.format(java.util.Locale.US,"%.1f KB",n/1024.0);
+        if(n<1024L*1024*1024)return String.format(java.util.Locale.US,"%.2f MB",n/(1024.0*1024));
+        return String.format(java.util.Locale.US,"%.2f GB",n/(1024.0*1024*1024));
     }
     private View stat(String label,String value){LinearLayout c=vertical();c.setPadding(10,12,10,12);c.setBackground(shape(PANEL2,0xFF28344A,14));c.addView(text(label,9,MUTED,true));c.addView(text(value,19,TEXT,true));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(0,0,6,0);c.setLayoutParams(p);return c;}
     private void sessions() {
