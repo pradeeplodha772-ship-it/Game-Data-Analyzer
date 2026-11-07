@@ -135,9 +135,9 @@ public class MainActivity extends Activity {
     private void updateSelectedAppView() {
         if (selectedAppView == null) return;
         if (selectedPackage.isEmpty()) {
-            selectedAppView.setText("No app selected\\nChoose an installed app to monitor.");
+            selectedAppView.setText("No app selected\nChoose an installed app to monitor.");
         } else {
-            selectedAppView.setText("SELECTED APP\\n" + selectedLabel + "\\n" + selectedPackage);
+            selectedAppView.setText("SELECTED APP\n" + selectedLabel + "\n" + selectedPackage);
         }
     }
 
