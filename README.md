@@ -1,4 +1,4 @@
-# AMURIA X — Advanced Android & App Network Testing
+# P.R Network Intelligence — Android Network Diagnostics
 
 AMURIA X is an authorized app/game network-testing workspace. It combines
 local file analysis, read-only HTTP(S) inspection for owned debug clients,
@@ -65,13 +65,19 @@ The report includes packet totals, protocol distribution, top endpoints,
 DNS query names, TCP stream count and capture duration. It intentionally
 does not dump packet payloads or extract secrets.
 
-## 4. Android tools
+## 4. Android app and floating controls
+
+The Android app is branded **P.R Network Intelligence**, includes a P.R vector launcher icon, and provides a searchable installed-app selector. The on-demand floating control panel can be opened from the app after the user grants Android's Display over other apps permission; it is draggable and can reopen or close the main app. The floating panel is a UI control only: it does not claim that packet capture is running.
+
+**Important implementation status:** the Android per-app VPN/TUN forwarding and live packet/session engine are not implemented yet. Selecting an app does not start capture. The Python mitmproxy inspector remains a separate tool for owned debug apps configured to trust a test CA.
+
+## 5. Android tools
 
 The Android app currently supports local JSON, Base64, hex, schema-less
 Protobuf wire-field and classic Ethernet PCAP inspection. The Android
 local-file analyzer is separate from the optional Python live-proxy tools.
 
-## 5. Roadmap
+## 6. Roadmap
 
 - Android local-VPN capture with explicit user consent and per-app selection.
 - PCAPNG/IPv6 support and richer DNS/TLS metadata in the Android UI.
